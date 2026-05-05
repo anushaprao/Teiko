@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ImmunoTrial · Loblaw Bio</title>
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg: #0b0e17;
+    --surface: #131722;
+    --surface2: #1a2035;
+    --border: #252d45;
+    --accent: #00d4aa;
+    --accent2: #5b8cff;
+    --danger: #ff5252;
+    --success: #00e676;
+    --text: #e8eaf6;
+    --muted: #7986cb;
+    --chart-bg: #0f1420;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,170,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,170,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Glowing orb */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px; right: -200px;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(91,140,255,0.08) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 0 32px 64px; }
+
+  /* ── Header ── */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 28px 0 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 36px;
+  }
+  .logo { display: flex; align-items: center; gap: 14px; }
+  .logo-mark {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800; font-size: 18px; color: var(--bg);
+  }
+  .logo-text h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px; font-weight: 700; letter-spacing: -0.5px;
+    line-height: 1;
+  }
+  .logo-text span { color: var(--muted); font-size: 11px; letter-spacing: 1px; }
+  .header-meta { display: flex; gap: 8px; align-items: center; }
+  .pill {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 4px 12px; font-size: 11px;
+    color: var(--muted); letter-spacing: 0.5px;
+  }
+  .pill.live { color: var(--accent); border-color: rgba(0,212,170,0.3); }
+
+  /* ── Stats row ── */
+  .stats-row {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    margin-bottom: 32px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px 24px;
+    position: relative; overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .stat-card:hover { border-color: var(--accent); }
+  .stat-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(0,212,170,0.04), transparent);
+    pointer-events: none;
+  }
+  .stat-label { color: var(--muted); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+  .stat-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 36px; font-weight: 800;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    line-height: 1;
+  }
+
+  /* ── Section headers ── */
+  .section-header {
+    display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px;
+  }
+  .section-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px; font-weight: 700;
+    color: var(--accent); letter-spacing: 2px;
+    padding: 3px 8px; background: rgba(0,212,170,0.08);
+    border-radius: 4px;
+  }
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px; font-weight: 700; color: var(--text);
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px; padding: 24px;
+    margin-bottom: 24px;
+  }
+
+  /* ── Chart containers ── */
+  .chart-container { width: 100%; }
+  #freq-chart { height: 380px; }
+  #box-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 12px; }
+  .box-wrap { height: 320px; }
+  #subset-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+  .subset-wrap { height: 280px; }
+
+  /* ── Stats table ── */
+  .stats-table {
+    width: 100%; border-collapse: collapse; font-size: 12px;
+  }
+  .stats-table th {
+    text-align: left; padding: 10px 14px;
+    font-family: 'Syne', sans-serif; font-size: 11px;
+    letter-spacing: 1px; text-transform: uppercase;
+    color: var(--muted); border-bottom: 1px solid var(--border);
+  }
+  .stats-table td {
+    padding: 12px 14px; border-bottom: 1px solid rgba(37,45,69,0.5);
+  }
+  .stats-table tr:hover td { background: var(--surface2); }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
+  }
+  .badge-sig { background: rgba(0,230,118,0.15); color: var(--success); }
+  .badge-ns  { background: rgba(121,134,203,0.15); color: var(--muted); }
+
+  .loading {
+    display: flex; align-items: center; justify-content: center;
+    height: 200px; color: var(--muted); font-size: 12px; letter-spacing: 1px;
+  }
+  .loading::after {
+    content: ''; width: 6px; height: 6px; margin-left: 8px;
+    border-radius: 50%; background: var(--accent);
+    animation: blink 1s infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  footer {
+    text-align: center; padding: 32px 0 0;
+    color: var(--muted); font-size: 11px; letter-spacing: 0.5px;
+    border-top: 1px solid var(--border); margin-top: 16px;
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-mark">LB</div>
+      <div class="logo-text">
+        <h1>ImmunoTrial Dashboard</h1>
+        <span>LOBLAW BIO · MIRACLIB CLINICAL TRIAL</span>
+      </div>
+    </div>
+    <div class="header-meta">
+      <div class="pill live">● LIVE</div>
+      <div class="pill">PBMC · Immune Profiling</div>
+    </div>
+  </header>
+
+  <!-- Stats row -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Projects</div>
+      <div class="stat-value" id="stat-projects">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Subjects</div>
+      <div class="stat-value" id="stat-subjects">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Samples</div>
+      <div class="stat-value" id="stat-samples">—</div>
+    </div>
+  </div>
+
+  <!-- Part 2: Frequency overview -->
+  <div class="section-header">
+    <span class="section-num">PART 2</span>
+    <span class="section-title">Cell Population Frequencies</span>
+  </div>
+  <div class="card">
+    <div id="freq-chart" class="chart-container"><div class="loading">Loading frequency data</div></div>
+  </div>
+
+  <!-- Part 3: Boxplots -->
+  <div class="section-header">
+    <span class="section-num">PART 3</span>
+    <span class="section-title">Responders vs Non-responders · Melanoma PBMC · Miraclib</span>
+  </div>
+  <div class="card">
+    <div id="box-grid">
+      <div id="box-b_cell" class="box-wrap"><div class="loading">Loading</div></div>
+      <div id="box-cd8_t_cell" class="box-wrap"><div class="loading">Loading</div></div>
+      <div id="box-cd4_t_cell" class="box-wrap"><div class="loading">Loading</div></div>
+      <div id="box-nk_cell" class="box-wrap"><div class="loading">Loading</div></div>
+      <div id="box-monocyte" class="box-wrap"><div class="loading">Loading</div></div>
+    </div>
+  </div>
+
+  <!-- Stats table -->
+  <div class="card">
+    <div class="section-header" style="margin-bottom:12px">
+      <span class="section-num">STATS</span>
+      <span class="section-title">Mann-Whitney U · Two-sided</span>
+    </div>
+    <table class="stats-table">
+      <thead>
+        <tr>
+          <th>Population</th>
+          <th>U Statistic</th>
+          <th>p-value</th>
+          <th>Significance</th>
+        </tr>
+      </thead>
+      <tbody id="stats-tbody"><tr><td colspan="4" style="color:var(--muted);padding:20px 14px">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- Part 4: Subset -->
+  <div class="section-header">
+    <span class="section-num">PART 4</span>
+    <span class="section-title">Baseline Subset · Melanoma PBMC · Miraclib · t=0</span>
+  </div>
+  <div class="card">
+    <div id="subset-grid">
+      <div id="sub-project" class="subset-wrap"><div class="loading">Loading</div></div>
+      <div id="sub-response" class="subset-wrap"><div class="loading">Loading</div></div>
+      <div id="sub-sex" class="subset-wrap"><div class="loading">Loading</div></div>
+    </div>
+  </div>
+
+  <footer>Loblaw Bio · Miraclib Clinical Trial · Immune Cell Population Analysis</footer>
+</div>
+
+<script>
+const COLORS = {
+  accent: '#00d4aa', accent2: '#5b8cff',
+  danger: '#ff5252', success: '#00e676',
+  muted: '#7986cb', bg: '#0f1420', surface: '#1a2035',
+  text: '#e8eaf6'
+};
+
+const plotLayout = (extra={}) => ({
+  paper_bgcolor: 'rgba(0,0,0,0)',
+  plot_bgcolor: COLORS.bg,
+  font: { family: 'DM Mono, monospace', color: COLORS.text, size: 11 },
+  margin: { t: 36, b: 40, l: 48, r: 16 },
+  xaxis: { gridcolor: '#1e2640', linecolor: '#252d45', tickfont: { size: 10 } },
+  yaxis: { gridcolor: '#1e2640', linecolor: '#252d45', tickfont: { size: 10 } },
+  ...extra
+});
+
+const plotConfig = { displayModeBar: false, responsive: true };
+
+// ── Overview stats ──
+fetch('/api/overview').then(r=>r.json()).then(d=>{
+  document.getElementById('stat-projects').textContent = d.projects.toLocaleString();
+  document.getElementById('stat-subjects').textContent = d.subjects.toLocaleString();
+  document.getElementById('stat-samples').textContent  = d.samples.toLocaleString();
+});
+
+// ── Part 2: Frequency bar chart ──
+fetch('/api/frequency').then(r=>r.json()).then(data=>{
+  const pops  = data.map(d=>d.population.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()));
+  const vals  = data.map(d=>+d.mean_pct.toFixed(2));
+  const colors= [COLORS.accent, COLORS.accent2, '#ff9f7f', COLORS.success, '#ffd166'];
+  Plotly.newPlot('freq-chart', [{
+    type: 'bar', x: pops, y: vals,
+    marker: { color: colors, opacity: 0.85 },
+    text: vals.map(v=>v.toFixed(1)+'%'),
+    textposition: 'outside', textfont: { size: 12 },
+    hovertemplate: '<b>%{x}</b><br>Mean freq: %{y:.2f}%<extra></extra>'
+  }], plotLayout({
+    title: { text: 'Mean Relative Frequency per Cell Population (all samples)', font: { size: 13 }, x: 0 },
+    yaxis: { title: 'Mean %', gridcolor: '#1e2640', linecolor: '#252d45' },
+    bargap: 0.4
+  }), plotConfig);
+});
+
+// ── Part 3: Boxplots ──
+fetch('/api/boxplot').then(r=>r.json()).then(data=>{
+  for (const [pop, v] of Object.entries(data)) {
+    const el = document.getElementById('box-'+pop);
+    const label = pop.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+    const sig = v.pval < 0.05;
+    Plotly.newPlot(el, [
+      { type:'box', y: v.responder, name:'Responder',
+        marker:{color: COLORS.success}, line:{color: COLORS.success},
+        boxpoints:'all', jitter:0.3, pointpos:0,
+        marker:{color: COLORS.success, size:4, opacity:0.6} },
+      { type:'box', y: v.non_responder, name:'Non-responder',
+        marker:{color: COLORS.danger}, line:{color: COLORS.danger},
+        boxpoints:'all', jitter:0.3, pointpos:0,
+        marker:{color: COLORS.danger, size:4, opacity:0.6} }
+    ], plotLayout({
+      title: {
+        text: `${label}<br><span style="font-size:10px;color:${sig?COLORS.success:COLORS.muted}">p = ${v.pval}${sig?' ✱':''}</span>`,
+        font:{ size:11 }, x:0.5
+      },
+      yaxis: { title:'%', gridcolor:'#1e2640', linecolor:'#252d45' },
+      showlegend: false,
+      margin:{ t:60, b:36, l:44, r:8 }
+    }), plotConfig);
+  }
+});
+
+// ── Stats table ──
+fetch('/api/stats').then(r=>r.json()).then(data=>{
+  const tbody = document.getElementById('stats-tbody');
+  tbody.innerHTML = data.map(d=>{
+    const sig = d.significant;
+    return `<tr>
+      <td>${d.population.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</td>
+      <td>${(+d.U_statistic).toFixed(1)}</td>
+      <td>${(+d.p_value).toFixed(4)}</td>
+      <td><span class="badge ${sig?'badge-sig':'badge-ns'}">${sig?'p < 0.05':'NS'}</span></td>
+    </tr>`;
+  }).join('');
+});
+
+// ── Part 4: Subset charts ──
+fetch('/api/subset').then(r=>r.json()).then(data=>{
+  // Samples per project
+  Plotly.newPlot('sub-project', [{
+    type: 'bar',
+    x: data.samples_per_project.map(d=>d.project_id),
+    y: data.samples_per_project.map(d=>d.samples),
+    marker: { color: COLORS.accent2, opacity: 0.85 },
+    text: data.samples_per_project.map(d=>d.samples),
+    textposition: 'outside',
+  }], plotLayout({
+    title:{ text:'Samples per Project', font:{size:12}, x:0 },
+    yaxis:{ title:'Count', gridcolor:'#1e2640' }, bargap:0.4
+  }), plotConfig);
+
+  // Response
+  Plotly.newPlot('sub-response', [{
+    type:'pie',
+    labels: data.response.map(d=>d.response==='yes'?'Responder':'Non-responder'),
+    values: data.response.map(d=>d.count),
+    marker:{ colors:[COLORS.success, COLORS.danger] },
+    textfont:{ color: COLORS.text },
+    hole: 0.4,
+  }], plotLayout({
+    title:{ text:'Responder/Non-responder', font:{size:12}, x:0.5 },
+    legend:{ font:{size:10}, bgcolor:'rgba(0,0,0,0)' },
+    margin:{ t:48, b:16, l:16, r:16 }
+  }), plotConfig);
+
+  // Sex
+  Plotly.newPlot('sub-sex', [{
+    type:'pie',
+    labels: data.sex.map(d=>d.sex==='M'?'Male':'Female'),
+    values: data.sex.map(d=>d.count),
+    marker:{ colors:[COLORS.accent2, '#ff9f7f'] },
+    textfont:{ color: COLORS.text },
+    hole: 0.4,
+  }], plotLayout({
+    title:{ text:'Sex Distribution', font:{size:12}, x:0.5 },
+    legend:{ font:{size:10}, bgcolor:'rgba(0,0,0,0)' },
+    margin:{ t:48, b:16, l:16, r:16 }
+  }), plotConfig);
+});
+</script>
+</body>
+</html>
